@@ -9,8 +9,5 @@ import scrapy
 from scrapy import Item, Field
 
 class GooglespiderItem(scrapy.Item):
-    collection = 'article'
-    # define the fields for your item here like:
-    # name = scrapy.Field()
     word = scrapy.Field()
 

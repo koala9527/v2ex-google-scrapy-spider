@@ -15,14 +15,17 @@ class GooglespiderPipeline(object):
 
 class CsvspiderPipeline(object):
     def __init__(self):
-        self.file = codecs.open('url.csv', 'w', encoding='utf_8_sig')
+        # 构造方法打开一个csv文件，不存在就创建
+        self.file = codecs.open('word.csv', 'w', encoding='utf_8_sig')
 
     def process_item(self, item, spider):
-        fieldnames = ['url']
+        fieldnames = ['word']
         w = csv.DictWriter(self.file, fieldnames=fieldnames)
-        print(item)
+        print(item) #这里是一个字典
+        #写入文件
         w.writerow(item)
         return item
 
     def close_spider(self, spider):
+        # 关闭文件
         self.file.close()

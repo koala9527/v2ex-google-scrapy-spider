@@ -5,10 +5,12 @@ from googlespider.items import GooglespiderItem
 
 
 class V2exSpider(scrapy.Spider):
-    name = 'v2ex'
-    allowed_domains = ['google.com']
-    start_urls = ['http://google.com/', 'https://www.v2ex.com/']
-    page_data = 10
+    name = 'v2ex' #爬虫名字。启动时候会用到它
+    allowed_domains = ['google.com'] #限制这个爬虫程序爬取内容的域名，在复杂的爬虫中有很多情况会爬到其他站点去
+    start_urls = ['http://google.com/'] #自动生成的爬虫程序开始爬取的域名，一般不用它。
+    page_data = 10  #google 的翻页页数。相当于全局变量，后面的程序改变它使用它
+
+    #这里设置公用的headers是因为v2ex这个网站使用默认的headers请求状态直接403了，不让你访问，后面会补充这个header是如何生成的
     headers = {
         'authority': 'www.v2ex.com',
         'cache-control': 'no-cache',
@@ -40,28 +42,32 @@ class V2exSpider(scrapy.Spider):
     }
 
     def start_requests(self):
+        # 这个函数是自己的写的，也是scrapy认可的，一开始会执行这个函数
+        #这个url是google的搜索页，site和inititle是google的高级搜索方法关键字，site指搜索结果只包含某个站点，intitle只搜索关键字之存在搜索结果网页的标题中
         url = "https://www.google.com/search?q=site:v2ex.com/t+intitle:%E4%B8%AD%E7%A7%8B"
+        # yield这是Python的高级用法，迭代器，这里就是实现异步爬虫的关键要点，把这个url的请求解析工作交给了parse这个方法，当前函数可以继续向下执行，但是这里是没有下面的方法了，然后迭代器又有很多迭代器。就会出现很对的异步请求。
         yield Request(url,  callback=self.parse)
 
     def parse(self, response):
-        # print(response.text)
+        # response对象是scrapy封装的对象，这里面有好多对象方法，例如下面的.selector.re就是使用正则提取网页关键内容的方法，我们提取google第一页的文章链接
         url_list = response.selector.re("https://www.v2ex.com/t/[0-9]*")
         print(url_list)
-
+        # 如果有文章链接就解析链接，把请求文章详情的任务用异步任务交给下一个方法去完成，然后翻页，直到google的结果页再也没有文章链接了
         if(len(url_list) > 0):
             for i in url_list:
-
                 yield Request(url=i, callback=self.parse_detail, dont_filter=True,headers=self.headers)
             yield Request(url="https://www.google.com/search?q=site:v2ex.com/t+intitle:%E4%B8%AD%E7%A7%8B&start="+str(self.page_data), callback=self.parse)
             self.page_data += 10
 
     def parse_detail(self, response):
-        print("jinlaile!!!!!!!111")
-        xpath_str = '//*[@class="reply_content"]'
+        # 这里使用xpath来解析v2ex文章内容。下面截图会补充
+        xpath_str = '//*[@class="reply_content"]/text()'
+        # 这里是收集爬去数据的管道，这个item管道会把数据交给下载器，下载器的后面编写下面接着说
         item = GooglespiderItem()
-        word_list = response.xpath(xpath_str)
+        word_list = response.xpath(xpath_str).getall()
         if(len(word_list)>0):
             for i in word_list:
                 
                 item['word'] = i
+                #把爬取的内容交给管道，管道会把数据自动调度给下载器使用
                 yield item
